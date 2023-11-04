@@ -1,0 +1,36 @@
+{
+  "name": "clarityhub",
+  "version": "1.0.0",
+  "description": "ClarityHub: Simplifica el lanzamiento de aplicaciones Node.js y Express. Una solución innovadora en desarrollo para una ejecución eficiente y clara de las apps de la comunidad o tus propias apps",
+  "main": "index.js",
+  "server": {
+    "pathviews": "bin/views",
+    "pathpublic": "bin/public"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/devlwte/clarityhub.git"
+  },
+  "keywords": [
+    "Express",
+    "App",
+    "launch",
+    "Productivity",
+    "App",
+    "execution"
+  ],
+  "author": "devlwte",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/devlwte/clarityhub/issues"
+  },
+  "homepage": "https://github.com/devlwte/clarityhub#readme",
+  "dependencies": {},
+  "webPreferences": {
+    "nodeIntegration": true,
+    "contextIsolation": false
+  }
+}
