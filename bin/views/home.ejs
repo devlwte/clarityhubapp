@@ -47,7 +47,7 @@
     </div>
   </div>
 
-  <div class="barra z-depth-3">
+  <div class="barra z-depth-3 jctx-host jctx-id-foo">
     <div class="anclas">
 
       <!-- <div class="ancla-item-body">
@@ -76,17 +76,23 @@
           <li data-action="info_app">Informacion</li>
         </ul>
       </li>
-      <li data-action="atajos" class="submenu-body">Crear Atajos
+      <li data-action="atajos" class="submenu-body">Enviar
         <ul class="submenu submenu-items">
-          <li data-action="sub_action_1">Escritorio</li>
-          <li data-action="sub_action_2">Ancla</li>
+          <li data-action="send_desktop">Escritorio</li>
+          <li data-action="ancla_barra">Anchors</li>
         </ul>
       </li>
     </div>
     <!-- <li data-action="new_intf" class="disabled">New interface (a disabled entry)</li> -->
+    
+
     <div class="sprt-menu" data-action="body-select">
       <li data-action="modal_cog">Configuracion</li>
       <li data-action="modal_cog_bg">Personalizar</li>
+    </div>
+
+    <div class="sprt-menu data-anchors" data-action="anchors-select">
+      <li data-action="remove_anchor">Quitar de anclas</li>
     </div>
 
   </ul>

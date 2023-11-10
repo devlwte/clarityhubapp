@@ -1,19 +1,43 @@
 {
-  "win_jqAsd5tr": {
-    "left": "248",
-    "top": "33",
+  "win_yit87jf5": {
+    "left": "0",
+    "top": "0",
     "width": 500,
     "height": 200
   },
-  "win_htyetuo5": {
-    "left": "248",
-    "top": "264",
+  "win_jqAsd5tr": {
+    "left": "565",
+    "top": "202",
     "width": 500,
     "height": 200
   },
   "win_gyt65oul": {
-    "left": "248",
-    "top": "264",
+    "left": "565",
+    "top": "202",
+    "width": 500,
+    "height": 200
+  },
+  "win_htyetuo5": {
+    "left": "565",
+    "top": "202",
+    "width": 500,
+    "height": 200
+  },
+  "win_875uty57": {
+    "left": "870",
+    "top": "290",
+    "width": 500,
+    "height": 200
+  },
+  "win_7tyr54jd": {
+    "left": "492",
+    "top": "297",
+    "width": 500,
+    "height": 200
+  },
+  "win_yt65rge4": {
+    "left": "516",
+    "top": "421",
     "width": 500,
     "height": 200
   }

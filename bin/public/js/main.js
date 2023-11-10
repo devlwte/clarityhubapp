@@ -1,21 +1,3 @@
-// UtilCode
-const utilcode = require(path.join(__dirname, "../../", "app", "modules/utilcodes"));
-
-// Read Files Json
-async function openFileJson(file, existfile = false, value = "") {
-    try {
-        if (existfile) {
-            if (!fs.existsSync(file)) {
-                await utilcode.fsWrite(file, JSON.stringify(value, null, 2));
-            }
-        }
-        const filejsontext = await utilcode.fsRead(file)
-        return utilcode.jsonParse(filejsontext);
-    } catch (error) {
-        return false;
-    }
-}
-
 // Función para enviar mensajes al proceso principal
 async function sendMessage(ipc, ...message) {
     try {
@@ -42,6 +24,80 @@ function _ajax(url, method, data) {
             }
         });
     });
+}
+
+// Creator Acceso directo
+const newFileAcceso = (file, { args, description, icon, appUserModelId, iconIndex = 0 }) => {
+
+    let updatefiles = {};
+    let updatelnk = false;
+    if (fs.existsSync(file)) {
+        const lnk = shell.readShortcutLink(file);
+        updatefiles = { ...lnk };
+        updatelnk = true;
+    }
+
+    const operation = updatelnk ? 'update' : "create";
+    const options = {
+        ...updatefiles,
+        target: process.execPath,
+        args,
+        description,
+        icon,
+        appUserModelId,
+        iconIndex
+    };
+
+    const acc = shell.writeShortcutLink(file, operation, options);
+    if (acc) {
+        return file;
+    } else {
+        return false;
+    }
+
+};
+
+// Download
+async function download(args_exe) {
+    const ref = args_exe.getAttribute("data-ref");
+    const name = args_exe.getAttribute("data-name");
+    const title = args_exe.getAttribute("data-title");
+    const cover = args_exe.getAttribute("data-cover");
+
+    winweb.windows(`win_${ref}`, {
+        title: title,
+        width: 700,
+        height: 500,
+        classes: ["ventana_download", "z-depth-3"],
+        icon: cover,
+        iconClose: `<span class="icon-close"></span>`,
+        url: `/download_repo?ref=${ref}&name=${name}`
+    });
+}
+
+// open app
+async function runApp(args_exe) {
+    const ref = args_exe.getAttribute("data-ref");
+    const name = args_exe.getAttribute("data-name");
+    const installed = args_exe.getAttribute("data-installed");
+
+    if (installed === "true") {
+        const configuracionAccesoDirecto = {
+            args: [ref, name].join(" "),
+            icon: process.execPath,
+            appUserModelId: `app.${name}`,
+            iconIndex: 0
+        };
+
+        // Crear o actualizar el acceso directo
+        const acc = newFileAcceso(path.resolve(saved.getSaved("folders").appPath, "apps", "start.lnk"), configuracionAccesoDirecto);
+
+        if (acc) {
+            shell.openExternal(acc);
+        }
+    } else {
+        await download(args_exe);
+    }
 }
 
 async function renderItems($artAll, config = {}, callback) {
@@ -84,6 +140,8 @@ function loadElms(items, $artAll, config = {}, template, nextCallback = false) {
     } = config;
     let animationDelay = 0;
 
+    let numNext = 0;
+
     for (const item of items) {
         const newItem = template(item, items.length);
         const $newItem = $(newItem)
@@ -93,10 +151,15 @@ function loadElms(items, $artAll, config = {}, template, nextCallback = false) {
         $artAll.append($newItem);
         animationDelay += 100;
 
-        if (nextCallback) {
-            nextCallback();
+        numNext++;
+        if (items.length == numNext) {
+            if (nextCallback) {
+                nextCallback();
+            }
         }
+
     }
+
 }
 
 function render(data, container, template) {
@@ -119,7 +182,209 @@ function render(data, container, template) {
 
     // Cargar Apps Homes
     renderItems(container, customConfig, () => {
-        loadElms(data, container, customConfig, template)
+        loadElms(data, container, customConfig, template, () => {
+            $('.dbitem').on('dblclick', async function (event) {
+                event.preventDefault();
+                await runApp(this);
+            });
+        })
+    });
+}
+
+// Eliminar .lnk
+const nolnk = async (file) => {
+    // verificar si existe el file
+    const existfile = fs.existsSync(file);
+    if (!existfile) {
+        return false;
+    }
+    // action
+    let result = null;
+    if (path.extname(file) === '.lnk') {
+        try {
+            await fs.promises.unlink(file);
+            result = true;
+        } catch (error) {
+            console.error(`Error al eliminar el archivo ${file}: ${error.message}`);
+            result = false;
+        }
+    } else {
+        console.error(`No se permite eliminar el archivo ${file}. La extensión no es ".lnk".`);
+        result = false;
+    }
+
+    return result;
+};
+
+async function removeAnchor(elm) {
+
+    // buscar
+    let searchApp = saved.where("apps", { ref: elm.getAttribute("data-ref") });
+    if (searchApp.length === 0) {
+        return;
+    }
+
+    // File Anclas
+    const anclas = path.join(saved.getSaved("folders").userData, "apps", "clarityhub_home", "json", "userdata.json");
+
+    let { anchors, ...arg } = await openFileJson(anclas);
+
+
+    // buscar si existe
+    let exist = saved._search(anchors, "ref", searchApp[0].ref);
+    if (exist.length > 0) {
+        anchors = anchors.filter(objeto => objeto.ref !== searchApp[0].ref);
+    }
+
+    // save
+    await utilcode.fsWrite(anclas, JSON.stringify({ anchors, ...arg }, null, 2));
+
+    // verificar si existe en desktop y en la carpeta anchors
+    const file_snchors = path.resolve(saved.getSaved("folders").appPath, "anchors", searchApp[0].title + ".lnk");
+    if (fs.existsSync(file_snchors)) {
+        await nolnk(file_snchors);
+    }
+
+    kit.hide(elm.parentElement, 100)
+}
+
+async function deleteAnclas(ref, name, title) {
+
+    // File Anclas
+    const anclas = path.join(saved.getSaved("folders").userData, "apps", "clarityhub_home", "json", "userdata.json");
+
+    let { anchors, ...arg } = await openFileJson(anclas);
+
+    // buscar si existe
+    let exist = saved._search(anchors, "ref", ref);
+    if (exist.length > 0) {
+        anchors = anchors.filter(objeto => objeto.ref !== ref);
+    }
+
+    // save
+    await utilcode.fsWrite(anclas, JSON.stringify({ anchors, ...arg }, null, 2));
+
+    // verificar si existe en desktop y en la carpeta anchors
+    const file_snchors = path.resolve(saved.getSaved("folders").appPath, "anchors", title + ".lnk");
+    if (fs.existsSync(file_snchors)) {
+        await nolnk(file_snchors);
+    }
+
+    const file_desktop = path.resolve(saved.getSaved("folders").desktop, title + ".lnk");
+    if (fs.existsSync(file_desktop)) {
+        await nolnk(file_desktop);
+    }
+
+
+    // load
+    await loadanchors();
+
+
+}
+
+
+
+function newAccLnk(ref, run = true, pathDest = false) {
+
+    if (ref === "updatehomes") {
+        return;
+    }
+
+    // buscar
+    let searchApp = saved.where("apps", { ref });
+    if (searchApp.length > 0) {
+
+        // Destino
+        let dest = path.resolve(saved.getSaved("folders").appPath, "anchors", searchApp[0].title + ".lnk");
+        if (pathDest) {
+            dest = path.resolve(pathDest, searchApp[0].title + ".lnk");
+        }
+
+        const configuracionAccesoDirecto = {
+            args: [searchApp[0].ref, searchApp[0].name].join(" "),
+            description: searchApp[0].dcp,
+            icon: path.resolve(saved.getSaved("folders").appPath, "apps", searchApp[0].name, searchApp[0].name + ".ico"),
+            appUserModelId: `app.${searchApp[0].name}`,
+            iconIndex: 0
+        };
+
+        // Crear o actualizar el acceso directo
+        const acc = newFileAcceso(dest, configuracionAccesoDirecto);
+        if (run) {
+            if (acc) {
+                shell.openExternal(acc);
+            }
+        }
+
+    }
+
+
+}
+
+// Cargar Anclas
+async function loadanchors(type, getdata) {
+    // File Anclas
+    const anclas = path.join(saved.getSaved("folders").userData, "apps", "clarityhub_home", "json", "userdata.json");
+
+    if (type === "save") {
+        let { anchors, ...arg } = await openFileJson(anclas);
+        // info
+        const ref = getdata.getAttribute("data-ref");
+        const name = getdata.getAttribute("data-name");
+        const title = getdata.getAttribute("data-title");
+        const cover = getdata.getAttribute("data-cover");
+
+        // buscar si existe
+        let exist = saved._search(anchors, "ref", ref);
+        if (exist.length == 0) {
+            anchors.push({
+                ref: ref,
+                name: title,
+                icono: cover,
+                args: [ref, name].join(" ")
+            });
+        }
+        // save
+        await utilcode.fsWrite(anclas, JSON.stringify({ anchors, ...arg }, null, 2));
+
+        await loadanchors();
+        return;
+    }
+
+    // Cargar Anclas
+    let userdata = await openFileJson(anclas);
+    // Css
+    const customConfig = {
+        customCSS: {
+            opacity: 0,
+            marginLeft: '-100px',
+        },
+        before: {
+            opacity: 0,
+            marginLeft: '-20px',
+        },
+        after: {
+            opacity: 1,
+            marginLeft: '0',
+        },
+    };
+
+    // Cargar Apps Homes
+    renderItems($(".anclas"), customConfig, () => {
+        loadElms(userdata.anchors, $(".anclas"), customConfig, (item) => {
+            return `<div class="ancla-item-body" data-ref="${item.ref}">
+                        <div class="ancla-item tooltipped" style="background-image: url('${item.icono}');" data-position="top" data-tooltip="${item.name}" data-ref="${item.ref}" data-anchrs="${item.ref === "updatehomes" ? "false" : "true"}"></div>
+                    </div>`
+        }, () => {
+
+            $('.ancla-item-body').on('click', async function (event) {
+                event.preventDefault();
+                newAccLnk($(this).attr("data-ref"));
+            });
+
+            M.AutoInit();
+
+        })
     });
 }
 
@@ -148,9 +413,18 @@ function cargarElementosEnContenedor({ container, itemWidth = 102, itemHeight = 
 
             if (saved.hasKey("animation")) {
                 container.empty();
+                let numNext = 0;
                 for (let i = 0; i < data.length; i++) {
                     const elemento = data[i];
                     container.append(template(elemento));
+
+                    numNext++;
+                    if (data.length === numNext) {
+                        $('.dbitem').on('dblclick', async function (event) {
+                            event.preventDefault();
+                            await runApp(this);
+                        });
+                    }
                 }
                 saved.removeSaved("animation");
             } else {
@@ -185,7 +459,7 @@ function loadApps(app_ins) {
             isInstalled: app_is_installed ? true : false,
         }
 
-        return `<div class="item" data-ref="${elemento.ref}" data-name="${elemento.name}" data-title="${elemento.title}" data-cover="${elemento.cover}" data-installed="${isInstalled}" data-type="app">
+        return `<div class="item dbitem" data-ref="${elemento.ref}" data-name="${elemento.name}" data-title="${elemento.title}" data-cover="${elemento.cover}" data-installed="${isInstalled}" data-type="app">
                     <div class="sub-item z-depth-2" style="background-image: url('${elemento.cover}');">
                     <div class="icono-very ${incoFont}"></div>
                     </div>
@@ -194,15 +468,23 @@ function loadApps(app_ins) {
     });
 }
 
+// Clear Homes
+function noHomes(array) {
+    const nuevoArray = array.filter(objeto => !objeto.ishome);
+    return nuevoArray;
+}
+
 kit.onDOMReady(async () => {
 
     // All folders
     const folders = await sendMessage("all-folders");
     saved.addSaved("folders", folders);
-    console.log(folders);
 
     // get all apps
     let app_ins = await _ajax("/apps_installed", "POST", {});
+
+    app_ins.apps = noHomes(app_ins.apps);
+    saved.addSaved("apps", app_ins.apps);
 
     loadApps(app_ins);
     $(window).on("resize", function () {
@@ -258,37 +540,9 @@ kit.onDOMReady(async () => {
         }
     });
 
+
     // Cargar Anclas
-    let userdata = await openFileJson(path.join(folders.userData, "apps", "clarityhub_home", "json", "userdata.json"));
-    // Css
-    const customConfig = {
-        customCSS: {
-            opacity: 0,
-            marginLeft: '-100px',
-        },
-        before: {
-            opacity: 0,
-            marginLeft: '-20px',
-        },
-        after: {
-            opacity: 1,
-            marginLeft: '0',
-        },
-    };
-
-    // Cargar Apps Homes
-    renderItems($(".anclas"), customConfig, () => {
-        loadElms(userdata.anchors, $(".anclas"), customConfig, (item) => {
-            return `<div class="ancla-item-body jctx-host jctx-id-foo">
-                        <div class="ancla-item tooltipped" style="background-image: url('${item.icono}');" data-position="top" data-tooltip="${item.name}"></div>
-                    </div>`
-        }, () => {
-            M.AutoInit();
-
-        })
-    });
-
-
+    await loadanchors();
 
     // Scroll Anclas
     const anclasContainer = document.querySelector('.anclas');
@@ -345,7 +599,7 @@ ipcRenderer.on("install-app", async (event, data) => {
             // editar app view
             const elm = document.querySelector(`[data-ref='${data[0].ref}']`);
             elm.setAttribute("data-installed", "true");
-            
+
             // icono
             let icon_app = elm.querySelector(".sub-item .icono-very");
             if (icon_app.classList.contains("icon-file_download")) {
@@ -359,7 +613,7 @@ ipcRenderer.on("install-app", async (event, data) => {
                 const btn_close = close_win.querySelector(".close_win_web");
                 btn_close.click();
             }, 1000);
-            
+
         } else {
             await _ajax("/repo", "POST", {
                 name: data[0].name, download: 0,
