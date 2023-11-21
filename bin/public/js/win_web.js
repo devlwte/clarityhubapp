@@ -1,6 +1,55 @@
 class WinWeb {
     constructor() {
-        this.kit = null;
+        this.kit = {
+            hide: (elmOrElement, duration, callback) => {
+                const element =
+                    elmOrElement instanceof Element
+                        ? elmOrElement
+                        : document.querySelector(elmOrElement);
+                if (element) {
+                    element.style.opacity = 1;
+                    let opacity = 1;
+
+                    function animate() {
+                        opacity -= 1 / (duration / 16); // Ajusta la velocidad de la transición
+                        element.style.opacity = opacity;
+
+                        if (opacity > 0) {
+                            requestAnimationFrame(animate);
+                        } else {
+                            element.style.display = "none";
+                            if (callback) {
+                                callback(element);
+                            }
+                        }
+                    }
+
+                    animate();
+                }
+            },
+            show: (elmOrElement, duration, type = null) => {
+                const element =
+                    elmOrElement instanceof Element
+                        ? elmOrElement
+                        : document.querySelector(elmOrElement);
+                if (element) {
+                    element.style.display = type === null ? "block" : type;
+                    element.style.opacity = 0;
+                    let opacity = 0;
+
+                    function animate() {
+                        opacity += 1 / (duration / 16); // Ajusta la velocidad de la transición
+                        element.style.opacity = opacity;
+
+                        if (opacity < 1) {
+                            requestAnimationFrame(animate);
+                        }
+                    }
+
+                    animate();
+                }
+            }
+        };
         this.saveState = null;
         this.loadState = null;
         this.wins = {};
@@ -11,7 +60,7 @@ class WinWeb {
         width = 500,
         height = 200,
         classes = false,
-        url,
+        url = false,
         iconClose,
         icon = "/lib/apps/iconos/clarityhub_home.svg"
     }) {
@@ -81,11 +130,13 @@ class WinWeb {
         // end
 
         // Webview
-        const webviewElement = document.createElement("webview");
-        webviewElement.src = url;
-        webviewElement.classList.add("webview");
+        if (url) {
+            const webviewElement = document.createElement("webview");
+            webviewElement.src = url;
+            webviewElement.classList.add("webview");
 
-        ventanaWin.append(webviewElement);
+            ventanaWin.append(webviewElement);
+        }
         // end
 
         document.body.append(ventanaWin);
@@ -141,41 +192,48 @@ class WinWeb {
         });
     }
 
-    async state(id, ventana, type) {
-        // ventanas
-        let ventanas = await this.loadState();
+    isJson(cadena) {
+        if (
+            /^[\],:{}\s]*$/.test(
+                cadena
+                    .replace(/\\["\\\/bfnrtu]/g, "@")
+                    .replace(
+                        /"[^"\\\n\r]*"|true|false|null|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?/g,
+                        "]"
+                    )
+                    .replace(/(?:^|:|,)(?:\s*\[)+/g, "")
+            )
+        ) {
+            return JSON.parse(cadena);
+        } else {
+            return false;
+        }
+    }
 
-        if (type === "save") {
-            let left = ventana.style.left.trim().replace(/\D/g, '');
-            let top = ventana.style.top.trim().replace(/\D/g, '');
-            let width = ventana.offsetWidth;
-            let height = ventana.offsetHeight;
+    loadStateStorage(id, ventana) {
+        const storage = localStorage;
+        if (!storage.getItem(id)) {
+            const windowWidth = window.innerWidth;
+            const windowHeight = window.innerHeight;
+            const ventanaWidth = ventana.offsetWidth;
+            const ventanaHeight = ventana.offsetHeight;
 
-            if (!ventanas[id]) {
-                ventanas[id] = {
-                    left,
-                    top,
-                    width,
-                    height
-                };
-            } else {
-                ventanas[id].left = left ? left : '0px';
-                ventanas[id].top = top ? top : '0px';
-                ventanas[id].width = width;
-                ventanas[id].height = height;
-            }
+            const left = (windowWidth - ventanaWidth) / 2;
+            const top = (windowHeight - ventanaHeight) / 2;
 
-            await this.saveState(ventanas);
-        } else if (type === "load") {
-            if (ventanas[id]) {
+            ventana.style.left = left + 'px';
+            ventana.style.top = top + 'px';
+        } else {
+            let info = this.isJson(storage.getItem(id));
+            if (info) {
                 const windowWidth = window.innerWidth;
                 const windowHeight = window.innerHeight;
                 const ventanaWidth = ventana.offsetWidth;
                 const ventanaHeight = ventana.offsetHeight;
 
                 // Asegurarse de que las coordenadas no se desborden hacia la derecha ni hacia abajo
-                let left = parseInt(ventanas[id].left, 10);
-                let top = parseInt(ventanas[id].top, 10);
+                let left = parseInt(info.left, 10);
+                let top = parseInt(info.top, 10);
 
                 // Evitar que las coordenadas se desborden a la derecha
                 left = Math.min(left, windowWidth - ventanaWidth);
@@ -189,23 +247,35 @@ class WinWeb {
 
                 ventana.style.left = left + 'px';
                 ventana.style.top = top + 'px';
-                ventana.style.width = ventanas[id].width + 'px';
-                ventana.style.height = ventanas[id].height + 'px';
-            } else {
-                const windowWidth = window.innerWidth;
-                const windowHeight = window.innerHeight;
-                const ventanaWidth = ventana.offsetWidth;
-                const ventanaHeight = ventana.offsetHeight;
-
-                const left = (windowWidth - ventanaWidth) / 2;
-                const top = (windowHeight - ventanaHeight) / 2;
-
-                ventana.style.left = left + 'px';
-                ventana.style.top = top + 'px';
-                ventana.style.width = 500 + 'px';
-                ventana.style.height = 200 + 'px';
-
+                ventana.style.width = info.width + 'px';
+                ventana.style.height = info.height + 'px';
             }
+        }
+    }
+
+    saveStateStorage(id, ventana) {
+        const storage = localStorage;
+        let left = ventana.style.left.trim().replace(/\D/g, '');
+        let top = ventana.style.top.trim().replace(/\D/g, '');
+        let width = ventana.offsetWidth;
+        let height = ventana.offsetHeight;
+
+        let infosave = {
+            left: left ? left : 0,
+            top: top ? top : 0,
+            width,
+            height
+        };
+
+        storage.setItem(id, JSON.stringify(infosave))
+    }
+
+    async state(id, ventana, type) {
+
+        if (type === "load") {
+            this.loadStateStorage(id, ventana);
+        } else if (type === "save") {
+            this.saveStateStorage(id, ventana);
         }
     }
 

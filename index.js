@@ -75,6 +75,12 @@ const sendAll = (data) => {
 }
 
 
+// Remove Objecto
+function removeObjecto(arrays, key, value) {
+    return arrays.filter((elemento) => elemento[key] !== value);
+}
+
+
 let routes = [
     {
         method: "get",
@@ -156,6 +162,67 @@ let routes = [
             } else {
                 res.send({})
             }
+        }
+    },
+    {
+        method: "post",
+        path: "/updatejson",
+        handler: async (req, res) => {
+            // identificador
+            const { ref, name, dev, version } = req.body;
+            
+            // db file
+            let { installed, ...arg } = await openFileJson(path.join(userdata, "data", "json", "db.json"), true, { installed: [] });
+
+            // eliminar objecto si existe
+            let nuevos = removeObjecto(installed, "ref", ref);
+            installed = nuevos;
+
+            // nuevo
+            installed.push({
+                ref,
+                name,
+                dev,
+                version
+            });
+
+            if (saved.hasKey("file-db")) {
+                saved.removeSaved("file-db");
+            }
+
+            saved.addSaved("file-db", { installed, ...arg });
+
+            // Save new data
+            await utilcode.fsWrite(path.join(userdata, "data", "json", "db.json"), JSON.stringify({ ...arg, installed }, null, 2));
+
+            res.end();
+        }
+    },
+    {
+        method: "post",
+        path: "/removejson",
+        handler: async (req, res) => {
+            // identificador
+            const { ref } = req.body;
+            
+            // db file
+            let { installed, ...arg } = await openFileJson(path.join(userdata, "data", "json", "db.json"), true, { installed: [] });
+
+            // eliminar objecto si existe
+            let nuevos = removeObjecto(installed, "ref", ref);
+            installed = nuevos;
+
+
+            if (saved.hasKey("file-db")) {
+                saved.removeSaved("file-db");
+            }
+
+            saved.addSaved("file-db", { installed, ...arg });
+
+            // Save new data
+            await utilcode.fsWrite(path.join(userdata, "data", "json", "db.json"), JSON.stringify({ ...arg, installed }, null, 2));
+
+            res.end();
         }
     }
 

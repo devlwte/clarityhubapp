@@ -28,7 +28,7 @@ function _ajax(url, method, data) {
 
 // Creator Acceso directo
 const newFileAcceso = (file, { args, description, icon, appUserModelId, iconIndex = 0 }) => {
-
+    console.log({ args, description, icon, appUserModelId, iconIndex });
     let updatefiles = {};
     let updatelnk = false;
     if (fs.existsSync(file)) {
@@ -42,7 +42,7 @@ const newFileAcceso = (file, { args, description, icon, appUserModelId, iconInde
         ...updatefiles,
         target: process.execPath,
         args,
-        description,
+        description: description ? description.length > 241 ? description.slice(0, 241).trim() + "..." : description : false,
         icon,
         appUserModelId,
         iconIndex
@@ -303,7 +303,7 @@ function newAccLnk(ref, run = true, pathDest = false) {
         const configuracionAccesoDirecto = {
             args: [searchApp[0].ref, searchApp[0].name].join(" "),
             description: searchApp[0].dcp,
-            icon: path.resolve(saved.getSaved("folders").appPath, "apps", searchApp[0].name, searchApp[0].name + ".ico"),
+            icon: path.join(saved.getSaved("folders").appPath, "apps", searchApp[0].name, "icono.ico"),
             appUserModelId: `app.${searchApp[0].name}`,
             iconIndex: 0
         };
@@ -475,7 +475,6 @@ function noHomes(array) {
 }
 
 kit.onDOMReady(async () => {
-
     // All folders
     const folders = await sendMessage("all-folders");
     saved.addSaved("folders", folders);
@@ -583,6 +582,7 @@ kit.onDOMReady(async () => {
     };
 
 
+
 })
 
 
@@ -613,6 +613,14 @@ ipcRenderer.on("install-app", async (event, data) => {
                 const btn_close = close_win.querySelector(".close_win_web");
                 btn_close.click();
             }, 1000);
+
+            // save in installed
+            await _ajax("/updatejson", "POST", {
+                ref: data[0].ref,
+                name: data[0].name,
+                dev: data[0].dev,
+                version: data[0].version
+            });
 
         } else {
             await _ajax("/repo", "POST", {
