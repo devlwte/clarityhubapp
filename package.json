@@ -29,7 +29,9 @@
     "url": "https://github.com/devlwte/clarityhubapp/issues"
   },
   "homepage": "https://github.com/devlwte/clarityhubapp#readme",
-  "dependencies": {},
+  "dependencies": {
+    "uuid": "^9.0.1"
+  },
   "webPreferences": {
     "nodeIntegration": true,
     "contextIsolation": false,
